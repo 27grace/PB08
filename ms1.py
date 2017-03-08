@@ -43,6 +43,16 @@ def backward(value):
 	A_backward()
 	B_backward()
 	speed(value)
+
+def rightturn(value):
+	A_forward()
+	B_backward()
+	speed(value)
+
+def leftturn(value):
+	A_backward()
+	B_forward()
+	speed(value)
 	
 def stop():
 	A1.low()
