@@ -31,7 +31,6 @@ for i= t:N
     subtracted(i) = y(i) - threshold(i);
 end
 
-
 % Plot the signal 
 figure(1);
 clf;
@@ -45,3 +44,10 @@ title('Before filter - Stay Alive Music');
 % produce sound
 sound(subtracted, fs)
 disp('Playing the filter music') 
+
+%find average threshold
+threshSum = 0;
+for i= 1:size(threshold)
+    threshSum = threshSum + threshold(i)
+end
+threshave= threshSum/size(threshold) 
