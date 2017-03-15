@@ -1,7 +1,9 @@
 import pyb
 from pyb import Pin, Timer, UART
 from oled_938 import OLED_938  # Use various class libraries in pyb
+import random
 
+# ----- SETTING UP ------
 # Define pins to control motor
 A1 = Pin('X3', Pin.OUT_PP) # Control direction of motor A
 A2 = Pin('X4', Pin.OUT_PP) 
@@ -43,6 +45,11 @@ def B_backward():
 def B_forward():
 	B1.high()
 	B2.low()
+
+# ------ DRIVE ------
+# drive parameters
+deadzone = 5
+speed = 50
 
 # Changing speed of motors
 def speedChange(value):
@@ -115,11 +122,11 @@ def dancethis(routine):
 			except:
 				pass
 
-#parameters
-deadzone = 5
-speed = 50
+def randomMove():
+	moves = ["u", "d", "r", "l", "s"]
+	dancethis(random.choice(moves))
 
-dancethis("u5xr3xl3x")
+
 
 
 	
