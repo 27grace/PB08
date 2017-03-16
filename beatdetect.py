@@ -70,8 +70,11 @@ def isr_sampling(dummy): 	# timer interrupt at 8kHz
 		buffer_full = True	# set the flag (semaphore) for buffer full
 
 # Create timer interrupt - one every 1/8000 sec or 125 usec
-sample_timer = pyb.Timer(7, freq=8000)	# set timer 7 for 8kHz
-sample_timer.callback(isr_sampling)		# specify interrupt service routine
+pyb.disable_irq()
+sample_timer = pyb.Timer(7, freq=8000)
+sample_timer.callback(isr_sampling)
+pyb.enable_irq()
+
 
 # -------- End of interrupt section ----------------
 
@@ -105,15 +108,14 @@ while True:				# Main program loop
 		dac.write(min(int(c*4095/3), 4095)) 	# useful to see on scope, can remove
 		
 		time_elapsed = pyb.millis()-tic
-		# taking into consideration time_elapsed
-		if time_elapsed > 800:
+		if (time_elapsed> 500 and c>BEAT_THRESHOLD):	# if more than 500ms since last beat
 			flash()					# beat found, flash blue LED
-			tic = pyb.millis()
-		elif time_elapsed >500:
-			# detecting energy over threshold using blinker
-			if (c>BEAT_THRESHOLD):
-				flash()
-				tic = pyb.millis()
+			tic = pyb.millis() # reset tic
+			print("detected")
+		elif (time_elapsed>800):
+			flash()  # beat found, flash blue LED
+			tic = pyb.millis()  # reset tic
+			print("forced")
 
 		dac.write(0)					# sueful to see on scope, can remove
 		buffer_full = False				# reset status flag

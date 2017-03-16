@@ -1,12 +1,14 @@
 
 clear all
-[sig fs] = audioread('BeeGees.wav');
-x = sig;
+[sig fs] = audioread('MJ_Beat_It_seg.wav');
+x1 = sig(:,1);
+x2 = sig(:,2);
+x = x1;
 N = 44100*0.02; % 20 ms of  sample given fs = 44100
 
 % Instantaneous energy in 20 ms
 for i= 1:N
-    y(i)= x(i)^2;% energy
+    y(i)= x(i,1).^2;% energy
 end
 
 % Beat threshold calculation 
@@ -21,14 +23,8 @@ for i= t:N
     s(i)= temp/t;
     % calculate threshold constant, b
     temp = 0;
-    for j = 0:t-1
-        temp = temp + (y(i)-s(i))^2; % variance
-    end
-    v(i)= temp/t;
-    b(i)= beta - alpha*v(i);
-    % combining threshold constant + average
-    threshold(i) = b(i)*s(i);
-    subtracted(i) = y(i) - threshold(i);
+    threshold(i) = y(i)/s(i);
+    subtracted(i)=y(i)-threshold(i);
 end
 
 % Plot the signal 
@@ -40,14 +36,7 @@ plot(threshold);
 hold on
 xlabel('Sample no');
 ylabel('Energy (sig^2)');
-title('Before filter - Stay Alive Music');
+title('Before filter - Stay Beat it');
 % produce sound
 sound(subtracted, fs)
 disp('Playing the filter music') 
-
-%find average threshold
-threshSum = 0;
-for i= 1:size(threshold)
-    threshSum = threshSum + threshold(i)
-end
-threshave= threshSum/size(threshold) 
