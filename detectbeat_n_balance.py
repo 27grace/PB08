@@ -150,7 +150,7 @@ try:
 				tic = pyb.micros()
 			
 				kp = 4.5
-				kd = 0.236
+				kd = 0.23599
 				ki = 0.6
 
 				print(pitch, "kp", kp, "kd", kd)
