@@ -2,13 +2,9 @@ import pyb
 from pyb import Pin, Timer, UART
 from oled_938 import OLED_938  # Use various class libraries in pyb
 
-# Define pins to control motor
-A1 = Pin('X3', Pin.OUT_PP) # Control direction of motor A
-A2 = Pin('X4', Pin.OUT_PP) 
-B1 = Pin('X7', Pin.OUT_PP) # Control direction of motor A
-B2 = Pin('X8', Pin.OUT_PP) 
-PWMA = Pin('X1') # Control speed of motor A
-PWMB = Pin('X2') # Control speed of motor B
+# import Peter's packages
+from motor import MOTOR 
+motor = MOTOR()
 
 # Define UART
 uart = UART(6)
@@ -19,61 +15,61 @@ oled = OLED_938(pinout = {'sda': 'Y10', 'scl': 'Y9', 'res': 'Y8'}, height = 64, 
 oled.poweron()
 oled.init_display()
 
-# Configure timer 2 to produce 1KHz clock for PWM control 
-tim = Timer(2, freq=1000)
-motorA = tim.channel (1, Timer.PWM, pin = PWMA)
-motorB = tim.channel (2, Timer.PWM, pin = PWMB)
+# ------ DRIVE ------
+# Changing speed of motors
+def slower(change):
+	global speed 
+	speed = speed - change
+	if speed > 0:
+		forward(speed)
+	elif speed < 0: # speed <=0
+		backward(-speed)
 
-def A_forward():
-	A1.low()
-	A2.high()
-	
-def A_backward():
-	A1.high()
-	A2.low()
-	
-def B_backward():
-	B1.low()
-	B2.high()
+def faster(change):
+	global speed 
+	if speed > 0:
+		forward(speed+change)
+	elif speed == 0:
+		backward(speed-change)
+	elif speed < 0: # speed <=0
+		backward(-(speed-change))
+	speed = abs(speed + change)
 
-def B_forward():
-	B1.high()
-	B2.low()
-	
-def speedChange(value):
-	motorA.pulse_width_percent(value)
-	motorB.pulse_width_percent(value)
-
+# drive functions
 def forward(value):
-	A_forward()
-	B_forward()
-	speedChange(value)
+	value = abs(value)
+	motor.A_forward(value) 
+	motor.B_forward(value)
+	printstatus("forward " + str(value))
 
 def backward(value):
-	A_backward()
-	B_backward()
-	speedChange(value)
+	value = abs(value)
+	motor.A_back(value) 
+	motor.B_back(value)
+	printstatus("backward " + str(value))
 
 def rightturn(value):
-	A_forward()
-	B_backward()
-	speedChange(value)
+	motor.A_back(value)
+	motor.B_forward(value)
+	printstatus("right " + str(value))
 
 def leftturn(value):
-	A_backward()
-	B_forward()
-	speedChange(value)
+	motor.A_forward(value)
+	motor.B_back(value)
+	printstatus("left " + str(value))
 
 def stop():
-	A1.low()
-	A2.low()
-	B1.low()
-	B2.low()
+	motor.A_stop()
+	motor.B_stop()
+	printstatus("stop ") 
+	
+def printstatus(status):
+	oled.clear()
+	oled.draw_text(0, 0, status)
+	oled.display()
 
 # USe keypad U, D, L, R keys to control direction
-DEADZONE = 5
-speed = 50
-status = ""
+speed = 25
 oled.draw_text(0, 40, "working")
 oled.display()
 while True:
@@ -82,20 +78,19 @@ while True:
 	command = uart.read(10)
 	if (command[2]==ord('5') and command[3]==ord('1')): # U
 		forward(speed)
-		status = "forward"
 	elif (command[2] == ord('6') and command[3]==ord('1')): # D
 		backward(speed)
-		status = "backward"
 	elif (command[2] == ord('7') and command[3]==ord('1')): # L
 		leftturn(speed)
-		status = "leftturn"
 	elif (command[2] == ord('8') and command[3]==ord('1')): # R
 		rightturn(speed)
-		status = "rightturn"
+	elif (command[2] == ord('2') and command[3]==ord('1')): # 2 increase speed
+		faster(5)
+	elif (command[2] == ord('4') and command[3]==ord('1')): # 4 reduce speed
+		slower(5)
+	elif (command[2] == ord('1') and command[3]==ord('1')): # 1 stop
+		stop()
 	else:
 		stop()
-		status = "stationary"
-	status = status + " speed:" + str(speed)
-	oled.draw_text(0, 40, status)
-	oled.display()
+		printstatus("stationary ")
 	

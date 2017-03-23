@@ -1,153 +1,91 @@
-'''
------------------------------------------------------------
-Name: Lab 4 Exercise 5
------------------------------------------------------------
-Draw Pendulum reflecting pitch angles (raw and filtered)
------------------------------------------------------------
-'''
 from mpu6050 import MPU6050
 import pyb
 from pyb import Pin, Timer, ADC, DAC, LED, UART
 from oled_938 import OLED_938  # Use various class libraries in pyb
 
+# import Peter's packages
+from motor import MOTOR 
+motor = MOTOR()
+
 # Define LEDs
 b_LED = LED(4)
 pot = ADC(Pin('X11'))
+a_out = DAC(1, bits =12) 
 
 # I2C connected to Y9, Y10 (I2C bus 2) and Y11 is reset low active
 oled = OLED_938(pinout={'sda': 'Y10', 'scl': 'Y9', 'res': 'Y8'}, height=64, external_vcc=False, i2c_devid=61)
-
 oled.poweron()
 oled.init_display()
+# set Kp
+kp = pot.read()*5.0/4095 
+oled.draw_text(0, 30, 'Kp = {:5.3f}'.format(kp))
+oled.display()
 
 # IMU connected to X9 and X10
 imu = MPU6050(1, False)  # Use I2C port 1 on Pyboard
 
-# ----- SETTING UP ------
-
-# Define pins to control motor
-A1 = Pin('X3', Pin.OUT_PP)  # Control direction of motor A
-A2 = Pin('X4', Pin.OUT_PP)
-B1 = Pin('X7', Pin.OUT_PP)  # Control direction of motor A
-B2 = Pin('X8', Pin.OUT_PP)
-PWMA = Pin('X1')  # Control speed of motor A
-PWMB = Pin('X2')  # Control speed of motor B
-# Configure timer 2 to produce 1KHz clock for PWM control
-tim = Timer(2, freq=1000)
-motorA = tim.channel (1, Timer.PWM, pin = PWMA)
-motorB = tim.channel (2, Timer.PWM, pin = PWMB)
-
-
-# Setting motor direction
-def A_forward():
-    A1.low()
-    A2.high()
-
-
-def A_backward():
-    A1.high()
-    A2.low()
-
-
-def B_backward():
-    B1.low()
-    B2.high()
-
-
-def B_forward():
-    B1.high()
-    B2.low()
-
 
 # ------ DRIVE ------
-# drive parameters
-deadzone = 5
-speed = 100
-
-
 # Changing speed of motors
-def speedChange(value):
-    motorA.pulse_width_percent(value)
-    motorB.pulse_width_percent(value)
-
-
 def slower(change):
-    global deadzone
-    global speed
-    if speed >= (change + deadzone):
-        speed = speed - change
-
+	motor.dn_Aspeed(change)
+	motor.dn_Bspeed(change)
 
 def faster(change):
-    global deadzone
-    global speed
-    if speed <= (100 - change + deadzone):
-        speed = speed + change
+	motor.up_Aspeed(change)
+	motor.up_Bspeed(change)
 
 
 # drive functions
 def forward(value):
-    A_forward()
-    B_forward()
-    speedChange(value)
-
+	motor.A_forward(value) #actually backward -.-
+	motor.B_forward(value)
 
 def backward(value):
-    A_backward()
-    B_backward()
-    speedChange(value)
-
+	motor.A_back(value) # actually forward -.-
+	motor.B_back(value)
 
 def rightturn(value):
-    A_forward()
-    B_backward()
-    speedChange(value)
-
+	motor.A_back(value)
+	motor.B_forward(value)
 
 def leftturn(value):
-    A_backward()
-    B_forward()
-    speedChange(value)
-
+	motor.A_forward(value)
+	motor.B_back(value)
 
 def stop():
-    A1.low()
-    A2.low()
-    B1.low()
-    B2.low()
+	motor.A_stop()
+	motor.B_stop()
 
+def pitch_estimate(pitch, dt, alpha):
+	theta = imu.pitch()
+	pitch_dot = imu.get_gy()
+	pitch = alpha*(pitch+pitch_dot*dt) +(1-alpha)*theta
+	return (pitch, pitch_dot)
 
-def read_imu(dt):
-    global g_pitch
-    alpha = 0.7  # larger = longer time constant
-    pitch = imu.pitch()
-    roll = imu.roll()
-    gy_dot = imu.get_gy()
-    gx_dot = imu.get_gx()
-    g_pitch = alpha * (g_pitch + gy_dot * dt * 0.001) + (1 - alpha) * pitch
-    # show graphics
-    oled.clear()
-    oled.line(96, 26, pitch, 24, 1)
-    oled.line(32, 26, g_pitch, 24, 1)
-    print("g_pitch", g_pitch)
-    oled.draw_text(0, 0, "Raw | PITCH |")
-    oled.draw_text(83, 0, "filtered")
-    oled.display()
-    corrections = 0
-    if g_pitch > 0.5:
-        corrections = (g_pitch / 1) * 100
-        forward(corrections)
-        print("correcting f")
-    if g_pitch < -0.5:
-        corrections = (abs(g_pitch)/ 1) * 100
-        backward(corrections)
-        print("correcting b")
+# --------------------------- MAIN LOOP ----------------------------------
+pitch = 0
+alpha = 0.95  # larger = longer time constant
+tic = pyb.micros()
+#tic1 = pyb.millis()
 
-g_pitch = 0
-tic = pyb.millis()
+	
 while True:
-    #backward(100)
-    b_LED.toggle()
-    toc = pyb.millis()
-    read_imu(toc - tic)
-    tic = pyb.millis()
+	b_LED.toggle()
+	dt = pyb.micros()-tic 
+	if dt>5000:
+		[pitch, pitch_dot]=pitch_estimate(pitch, dt*0.000001, alpha)
+		tic = pyb.micros()
+	
+		#kp = 2.5
+		kd = 0.33
+
+		print(pitch, "kp", kp)
+		cspeed = kp*(pitch-0.21) + kd*pitch_dot #cspeed -> correction speed
+		if cspeed > 0:
+			forward(cspeed+5)
+		elif cspeed <0:
+			backward(-(cspeed-5))
+			
+		#a_out.write(int(pitch*40+2048))
+		a_out.write(int(pitch_dot*10+2048))

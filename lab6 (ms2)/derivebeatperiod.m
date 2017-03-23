@@ -1,14 +1,18 @@
 
 clear all
-[sig fs] = audioread('MJ_Beat_It_seg.wav');
+[sig fs] = audioread('MJ_BI_seg.wav');
 x1 = sig(:,1);
 x2 = sig(:,2);
-x = x1;
-N = 44100*0.02; % 20 ms of  sample given fs = 44100
+x = sig;
+N = 44100*5; % 20 ms of  sample given fs = 44100
+start_sam =5474330;
 
 % Instantaneous energy in 20 ms
-for i= 1:N
-    y(i)= x(i,1).^2;% energy
+for i= start_sam:start_sam+N
+    for n = 1:N
+        y(n)= x(i,1).^2;% energy
+        r(n)= x(i,1);
+    end
 end
 
 % Beat threshold calculation 
